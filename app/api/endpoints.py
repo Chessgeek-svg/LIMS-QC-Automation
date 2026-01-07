@@ -1,11 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List, cast
-from decimal import Decimal
+from typing import List, Optional
+from datetime import datetime
 
 from app.crud import instrument as crud_instrument
 from app.crud import qc as crud_qc
-from app.crud.qc import get_test_definitions
 from app.logic.rules_engine import evaluate_westgard, calculate_z_score
 from app.models import qc as models
 from app.schemas import qc as schemas_qc
@@ -26,6 +25,16 @@ def read_instruments(skip: int = 0, limit: int = 100, db: Session = Depends(get_
 @router.post("/tests/", response_model=schemas_qc.TestDefinition)
 def create_test(test: schemas_qc.TestDefinitionCreate, db: Session = Depends(get_db)):
     return crud_qc.create_test_definition(db=db, test=test)
+    
+@router.get("/test-definitions/", response_model=List[schemas_qc.TestDefinition])
+def read_test_definitions(
+    instrument_id: Optional[int] = None,
+    skip: int = 0, 
+    limit: int = 100, 
+    db: Session = Depends(get_db)
+):
+    tests = crud_qc.get_test_definitions(db, instrument_id=instrument_id, skip=skip, limit=limit)
+    return tests
 
 #QC Result Endpoints
 @router.post("/results/", response_model=schemas_qc.QCResult)
@@ -69,3 +78,48 @@ def submit_qc_result(result: schemas_qc.QCResultCreate, db: Session = Depends(ge
         status=evaluation.status,
         system_comment=evaluation.message
     )
+
+@router.get("/results/", response_model=List[schemas_qc.QCResult])
+def read_results(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    #Only return results that are not archived for now
+    #Could add a review mode / supervisor mode to show all results including archived
+    results = db.query(models.QCResult).filter(
+        models.QCResult.is_archived == False
+    ).offset(skip).limit(limit).all()
+    return results
+
+@router.get("/audit-logs/", response_model=List[schemas_qc.AuditLog])
+def get_audit_logs(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    logs = db.query(models.AuditLog).order_by(models.AuditLog.timestamp.desc()).offset(skip).limit(limit).all()
+    return logs
+
+@router.patch("/results/{result_id}", response_model=schemas_qc.QCResult)
+def update_qc_result(
+    result_id: int, 
+    update_data: schemas_qc.QCResultUpdate, 
+    supervisor_id: int, #Temporary until Auth is added
+    db: Session = Depends(get_db)
+):
+    db_result = db.query(models.QCResult).filter(models.QCResult.id == result_id).first()
+    if not db_result:
+        raise HTTPException(status_code=404, detail="Result not found")
+        
+    return crud_qc.update_qc_result(
+        db=db, 
+        db_result=db_result, 
+        obj_in=update_data, 
+        supervisor_id=supervisor_id
+    )
+
+@router.delete("/results/{result_id}")
+def archive_result(result_id: int, supervisor_id: int, db: Session = Depends(get_db)):
+    result = crud_qc.archive_qc_result(db, result_id=result_id, supervisor_id=supervisor_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Result not found")
+    return {
+        "status": "success",
+        "message": f"Result {result_id} has been archived.",
+        "archived_by": supervisor_id,
+        "timestamp": datetime.now(),
+        "data": result
+    }

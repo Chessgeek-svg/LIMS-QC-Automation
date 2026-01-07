@@ -34,6 +34,7 @@ class TestDefinition(TestDefinitionBase):
 class QCResultCreate(BaseModel):
     value: Decimal
     test_id: int
+    user_id: Optional[int] = None
     user_comment: Optional[str] = None
 
 class QCResult(QCResultCreate):
@@ -43,4 +44,21 @@ class QCResult(QCResultCreate):
     status: str
     system_comment: str
     user_comment: Optional[str] = None
+    model_config = ConfigDict(from_attributes=True)
+
+class QCResultUpdate(BaseModel):
+    user_comment: Optional[str] = None
+    #Allow supervisors to override the status if they provide a reason
+    status: Optional[str] = None    
+
+class AuditLog(BaseModel):
+    id: int
+    table_name: str
+    record_id: int
+    action: str
+    old_value: Optional[str] = None
+    new_value: Optional[str] = None
+    user_id: Optional[int]
+    timestamp: datetime
+
     model_config = ConfigDict(from_attributes=True)
