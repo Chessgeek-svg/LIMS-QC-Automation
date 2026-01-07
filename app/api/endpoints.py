@@ -123,3 +123,13 @@ def archive_result(result_id: int, supervisor_id: int, db: Session = Depends(get
         "timestamp": datetime.now(),
         "data": result
     }
+
+@router.get("/test-definitions/{test_id}/stats", response_model=schemas_qc.TestStats)
+def get_test_stats(test_id: int, db: Session = Depends(get_db)):
+    stats = crud_qc.get_test_statistics(db, test_id=test_id)
+    if not stats:
+        raise HTTPException(
+            status_code=404, 
+            detail=f"Test definition with ID {test_id} not found or has no results."
+        )
+    return stats

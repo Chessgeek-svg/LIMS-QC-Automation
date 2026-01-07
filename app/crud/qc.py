@@ -1,9 +1,12 @@
 import json
+import statistics
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 from app.models import qc as models
 from app.schemas import qc as schemas
 from typing import Optional
+from decimal import Decimal
+
 
 #Test Definition CRUD
 def create_test_definition(db: Session, test: schemas.TestDefinitionCreate):
@@ -102,3 +105,29 @@ def archive_qc_result(db: Session, result_id: int, supervisor_id: int):
     db.add(db_audit)
     db.commit()
     return db_result
+
+def get_test_statistics(db: Session, test_id: int, limit: int = 30):
+    test_def = db.query(models.TestDefinition).filter(models.TestDefinition.id == test_id).first()
+    
+    results = db.query(models.QCResult).filter(
+        models.QCResult.test_id == test_id,
+        models.QCResult.is_archived == False
+    ).order_by(models.QCResult.timestamp.desc()).limit(limit).all()
+
+    if not results or not test_def:
+        return None
+
+    values = [float(r.value) for r in results]
+    actual_mean = statistics.mean(values)
+    actual_sd = statistics.stdev(values) if len(values) > 1 else 0
+
+    return {
+        "test_definition": test_def,
+        "recent_results": results[::-1],
+        "target_mean": test_def.mean,
+        "target_sd": test_def.std_dev,
+        "actual_mean": Decimal(str(round(actual_mean, 3))),
+        "actual_sd": Decimal(str(round(actual_sd, 3))),
+        "plus_3sd": test_def.mean + (test_def.std_dev * 3),
+        "minus_3sd": test_def.mean - (test_def.std_dev * 3)
+    }

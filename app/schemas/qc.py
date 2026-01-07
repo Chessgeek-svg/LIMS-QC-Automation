@@ -49,7 +49,19 @@ class QCResult(QCResultCreate):
 class QCResultUpdate(BaseModel):
     user_comment: Optional[str] = None
     #Allow supervisors to override the status if they provide a reason
-    status: Optional[str] = None    
+    status: Optional[str] = None
+
+class TestStats(BaseModel):
+    test_definition: TestDefinition
+    recent_results: list[QCResult]
+    target_mean: Decimal
+    target_sd: Decimal
+    actual_mean: Decimal
+    actual_sd: Decimal
+    
+    # SD boundary values for the Y-axis
+    plus_3sd: Decimal
+    minus_3sd: Decimal
 
 class AuditLog(BaseModel):
     id: int
