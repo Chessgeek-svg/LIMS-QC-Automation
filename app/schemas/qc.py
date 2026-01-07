@@ -31,16 +31,16 @@ class TestDefinition(TestDefinitionBase):
     instrument_id: int
     model_config = ConfigDict(from_attributes=True)
 
-class QCResultBase(BaseModel):
+class QCResultCreate(BaseModel):
     value: Decimal
-    comment: Optional[str] = None
-
-class QCResultCreate(QCResultBase):
     test_id: int
+    user_comment: Optional[str] = None
 
-class QCResult(QCResultBase):
+class QCResult(QCResultCreate):
     id: int
     test_id: int
     timestamp: datetime
     status: str
+    system_comment: str
+    user_comment: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)

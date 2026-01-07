@@ -1,7 +1,8 @@
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Numeric
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 from app.db.session import Base
+from decimal import Decimal
 
 class Instrument(Base):
     __tablename__ = "instruments"
@@ -21,8 +22,10 @@ class TestDefinition(Base):
     analyte_name = Column(String, nullable=False)
     units = Column(String)
     
-    mean = Column(Numeric(precision=10, scale=3), nullable=False)
-    std_dev = Column(Numeric(precision=10, scale=3), nullable=False)
+    # Mapped[Decimal] provides an explicit type hint to resolve the impedance mismatch 
+    # between SQLAlchemy Column objects and static type checkers like Pylance.
+    mean: Mapped[Decimal] = mapped_column(Numeric(10, 3))
+    std_dev: Mapped[Decimal] = mapped_column(Numeric(10, 3))
 
     instrument = relationship("Instrument", back_populates="test_definitions")
     results = relationship("QCResult", back_populates="test_definition")
@@ -32,10 +35,11 @@ class QCResult(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     test_id = Column(Integer, ForeignKey("test_definitions.id"))
-    value = Column(Numeric(precision=10, scale=3), nullable=False)
+    value : Mapped[Decimal] = mapped_column(Numeric(10, 3), nullable=False)
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
     user_id = Column(Integer)  # To be linked to an Auth system later
     status = Column(String)
-    comment = Column(String, nullable=True)
+    system_comment = Column(String, nullable=True)
+    user_comment = Column(String, nullable=True)
 
     test_definition = relationship("TestDefinition", back_populates="results")
