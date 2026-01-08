@@ -56,10 +56,11 @@ def create_qc_result(db: Session, result: schemas.QCResultCreate, status: str, s
     db.refresh(db_result)
     return db_result
 
-def update_qc_result(db: Session, db_result: models.QCResult, obj_in: schemas.QCResultUpdate, supervisor_id: int):
+def update_qc_result(db: Session, db_result: models.QCResult, obj_in: schemas.QCResultUpdate):
     old_data = jsonable_encoder(db_result)
     
     update_data = obj_in.model_dump(exclude_unset=True)
+    supervisor_id = update_data.pop("supervisor_id", None)
     for field in update_data:
         setattr(db_result, field, update_data[field])
     
@@ -106,20 +107,27 @@ def archive_qc_result(db: Session, result_id: int, supervisor_id: int):
     db.commit()
     return db_result
 
-def get_test_statistics(db: Session, test_id: int, limit: int = 30):
+def get_test_statistics(db: Session, test_id: int, limit: int = 30, include_archived: bool = False):
     test_def = db.query(models.TestDefinition).filter(models.TestDefinition.id == test_id).first()
     
-    results = db.query(models.QCResult).filter(
-        models.QCResult.test_id == test_id,
-        models.QCResult.is_archived == False
-    ).order_by(models.QCResult.timestamp.desc()).limit(limit).all()
+    query = db.query(models.QCResult).filter(models.QCResult.test_id == test_id)
+
+    if not include_archived:
+        query = query.filter(models.QCResult.status != "ARCHIVED")
+
+    results = query.order_by(models.QCResult.timestamp.desc()).limit(limit).all()
 
     if not results or not test_def:
         return None
 
-    values = [float(r.value) for r in results]
-    actual_mean = statistics.mean(values)
-    actual_sd = statistics.stdev(values) if len(values) > 1 else 0
+    stats_values = [float(r.value) for r in results if r.status != "ARCHIVED"]
+    
+    if stats_values:
+        actual_mean = statistics.mean(stats_values)
+        actual_sd = statistics.stdev(stats_values) if len(stats_values) > 1 else 0
+    else:
+        actual_mean = 0
+        actual_sd = 0
 
     return {
         "test_definition": test_def,

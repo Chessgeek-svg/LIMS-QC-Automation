@@ -50,6 +50,7 @@ class QCResultUpdate(BaseModel):
     user_comment: Optional[str] = None
     #Allow supervisors to override the status if they provide a reason
     status: Optional[str] = None
+    supervisor_id: int
 
 class TestStats(BaseModel):
     test_definition: TestDefinition

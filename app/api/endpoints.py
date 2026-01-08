@@ -97,7 +97,6 @@ def get_audit_logs(skip: int = 0, limit: int = 100, db: Session = Depends(get_db
 def update_qc_result(
     result_id: int, 
     update_data: schemas_qc.QCResultUpdate, 
-    supervisor_id: int, #Temporary until Auth is added
     db: Session = Depends(get_db)
 ):
     db_result = db.query(models.QCResult).filter(models.QCResult.id == result_id).first()
@@ -108,7 +107,6 @@ def update_qc_result(
         db=db, 
         db_result=db_result, 
         obj_in=update_data, 
-        supervisor_id=supervisor_id
     )
 
 @router.delete("/results/{result_id}")
@@ -125,8 +123,14 @@ def archive_result(result_id: int, supervisor_id: int, db: Session = Depends(get
     }
 
 @router.get("/test-definitions/{test_id}/stats", response_model=schemas_qc.TestStats)
-def get_test_stats(test_id: int, db: Session = Depends(get_db)):
-    stats = crud_qc.get_test_statistics(db, test_id=test_id)
+def get_test_stats(
+    test_id: int, 
+    include_archived: bool = False,
+    db: Session = Depends(get_db)
+):
+    
+    stats = crud_qc.get_test_statistics(db, test_id=test_id, include_archived=include_archived)
+    
     if not stats:
         raise HTTPException(
             status_code=404, 
