@@ -136,6 +136,9 @@ def get_test_statistics(db: Session, test_id: int, limit: int = 30, include_arch
         "target_sd": test_def.std_dev,
         "actual_mean": Decimal(str(round(actual_mean, 3))),
         "actual_sd": Decimal(str(round(actual_sd, 3))),
+        "plus_2sd": test_def.mean + (test_def.std_dev * 2),
+        "minus_2sd": test_def.mean - (test_def.std_dev * 2),
         "plus_3sd": test_def.mean + (test_def.std_dev * 3),
-        "minus_3sd": test_def.mean - (test_def.std_dev * 3)
+        "minus_3sd": test_def.mean - (test_def.std_dev * 3),
+
     }

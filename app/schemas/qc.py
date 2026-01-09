@@ -44,6 +44,7 @@ class QCResult(QCResultCreate):
     status: str
     system_comment: str
     user_comment: Optional[str] = None
+    supervisor_comment: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
 
 class QCResultUpdate(BaseModel):
@@ -51,6 +52,7 @@ class QCResultUpdate(BaseModel):
     #Allow supervisors to override the status if they provide a reason
     status: Optional[str] = None
     supervisor_id: int
+    supervisor_comment: Optional[str] = None
 
 class TestStats(BaseModel):
     test_definition: TestDefinition
@@ -59,8 +61,8 @@ class TestStats(BaseModel):
     target_sd: Decimal
     actual_mean: Decimal
     actual_sd: Decimal
-    
-    # SD boundary values for the Y-axis
+    plus_2sd: Decimal
+    minus_2sd: Decimal
     plus_3sd: Decimal
     minus_3sd: Decimal
 

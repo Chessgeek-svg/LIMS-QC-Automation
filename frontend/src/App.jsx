@@ -5,11 +5,11 @@ import QCChart from './QCChart'
 function App() {
   const [tests, setTests] = useState([])
   const [selectedStats, setSelectedStats] = useState(null)
-  const [reviewComment, setReviewComment] = useState("");
   const [error, setError] = useState(null);
   const [selectedResult, setSelectedResult] = useState(null);
   const [showArchived, setShowArchived] = useState(false);
   const [selectedTestId, setSelectedTestId] = useState(null);
+  const [supComment, setSupComment] = useState("");
 
   useEffect(() => {
     axios.get('http://localhost:8000/api/v1/test-definitions/')
@@ -39,15 +39,27 @@ useEffect(() => {
   const handleUpdateStatus = (newStatus) => {
     const payload = {
       status: newStatus,
-      user_comment: reviewComment,
+      supervisor_comment: supComment,
       supervisor_id: 1 //Hardcoded for now until Auth added
     };
 
     axios.patch(`http://localhost:8000/api/v1/results/${selectedResult.id}`, payload)
       .then(res => {
+        setSelectedStats(prevStats => {
+          if (!prevStats) return null;
+          
+          const updatedResults = prevStats.recent_results.map(r => 
+            r.id === selectedResult.id ? { ...r, status: newStatus } : r
+          );
+
+          return {
+            ...prevStats,
+            recent_results: updatedResults
+          };
+        });
+
         setSelectedResult(null);
-        selectTest(selectedStats.test_definition.id);
-        alert(`Result ${newStatus} successfully.`);
+        setSupComment("");
       })
       .catch(err => {
         console.error(err);
@@ -58,6 +70,31 @@ useEffect(() => {
     if (showArchived) return true;
     return r.status?.toUpperCase() !== 'ARCHIVED';
   }) || [];
+
+  const calculateObservedStats = (results) => {
+    const values = results
+        .map(r => parseFloat(r.value))
+        .filter(val => !isNaN(val)); //Remove any entries that aren't numbers
+
+      const n = values.length;
+    if (n === 0) return { mean: 0, stdDev: 0, cv: 0 };
+    
+    const mean = values.reduce((a, b) => a + b, 0) / n;
+
+    const stdDev = n > 1 
+      ? Math.sqrt(values.map(x => Math.pow(x - mean, 2)).reduce((a, b) => a + b) / n) 
+      : 0;
+
+    const cv = mean !== 0 ? (stdDev / mean) * 100 : 0;
+
+    return { 
+      mean: mean.toFixed(2), 
+      stdDev: stdDev.toFixed(2), 
+      cv: cv.toFixed(2) 
+    };
+  };
+
+  const observed = calculateObservedStats(displayedResults);
   
 
   return (
@@ -80,10 +117,50 @@ useEffect(() => {
           {error}
         </div>
       )}
+      
       {selectedStats ? (
-        <QCChart data={displayedResults} stats={selectedStats} />
+          <QCChart data={displayedResults} stats={selectedStats} onPointClick={setSelectedResult}/>
       ) : (
         !error && <p>Please select a test to view the QC chart.</p>
+      )}
+      {selectedStats && (
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(4, 1fr)', 
+          gap: '15px', 
+          marginBottom: '25px',
+          backgroundColor: '#1e293b', 
+          padding: '20px', 
+          borderRadius: '8px', 
+          color: 'white',
+          border: '1px solid #334155'
+        }}>
+        <div>
+          <p style={{ fontSize: '0.7rem', color: '#94a3b8', margin: '0' }}>Mean (Target | Obs)</p>
+          <p style={{ fontSize: '1.1rem', fontWeight: 'bold', margin: '5px 0' }}>
+            {selectedStats.test_definition?.mean} | <span style={{ color: '#60a5fa' }}>{observed.mean}</span>
+          </p>
+        </div>
+
+        <div>
+          <p style={{ fontSize: '0.7rem', color: '#94a3b8', margin: '0' }}>SD (Target | Obs)</p>
+          <p style={{ fontSize: '1.1rem', fontWeight: 'bold', margin: '5px 0' }}>
+            {selectedStats.test_definition?.std_dev} | <span style={{ color: '#60a5fa' }}>{observed.stdDev}</span>
+          </p>
+        </div>
+
+        <div>
+          <p style={{ fontSize: '0.7rem', color: '#94a3b8', margin: '0' }}>CV% (Target | Obs)</p>
+          <p style={{ fontSize: '1.1rem', fontWeight: 'bold', margin: '5px 0' }}>
+            {((selectedStats.test_definition?.std_dev / selectedStats.test_definition?.mean) * 100).toFixed(2)}% | 
+            <span style={{ color: '#60a5fa' }}> {observed.cv}%</span>
+          </p>
+        </div>
+          <div style={{ borderLeft: '1px solid #334155', paddingLeft: '15px' }}>
+            <p style={{ fontSize: '0.7rem', color: '#94a3b8', margin: '0' }}>Points (N)</p>
+            <p style={{ fontSize: '1.1rem', fontWeight: 'bold', margin: '5px 0' }}>{displayedResults.length}</p>
+          </div>
+        </div>
       )}
       {selectedStats && (
         <div style={{ marginTop: '30px' }}>
@@ -125,9 +202,9 @@ useEffect(() => {
                       fontWeight: 'bold',
                       backgroundColor: 
                         result.status === 'PASS' ? '#dcfce7' : 
-                        result.status === 'VERIFIED' ? '#dbeafe' : // Blue for Verified
-                        result.status === 'ARCHIVED' ? '#f3f4f6' : // Grey for Archived
-                        '#fee2e2', // Red for Reject/Error
+                        result.status === 'VERIFIED' ? '#dbeafe' :
+                        result.status === 'ARCHIVED' ? '#f3f4f6' :
+                        '#fee2e2',
                       color: 
                         result.status === 'PASS' ? '#166534' : 
                         result.status === 'VERIFIED' ? '#1e40af' : 
@@ -141,7 +218,7 @@ useEffect(() => {
                     <button 
                       onClick={() => {
                         setSelectedResult(result);
-                        setReviewComment(result.user_comment === "string" ? "" : (result.user_comment || ""));
+                        setSupComment("");
                       }}
                       style={{ padding: '5px 10px', cursor: 'pointer', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '4px' }}>
                       Review
@@ -152,16 +229,21 @@ useEffect(() => {
             </tbody>
           </table>
           {selectedResult && (
-            <div style={{ marginTop: '20px', padding: '20px', border: '2px solid #3b82f6', borderRadius: '8px', backgroundColor: '#060a10ff' }}>
+            <div className="review-panel" style={{ marginTop: '20px', padding: '20px', border: '2px solid #3b82f6', borderRadius: '8px', backgroundColor: '#060a10ff' }}>
               <h3>Reviewing Result ID: {selectedResult.id}</h3>
               <p><strong>Value:</strong> {selectedResult.value} | <strong>Current Status:</strong> {selectedResult.status}</p>
+              <div style={{ marginBottom: '15px', padding: '10px', backgroundColor: '#1e293b', borderRadius: '4px' }}>
+                <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: '0 0 5px 0' }}>Tech Note (Immutable):</p>
+                <p style={{ margin: 0 }}>{selectedResult.user_comment || "No comment provided by tech."}</p>
+              </div>
               
+
               <label style={{ display: 'block', marginBottom: '10px' }}>
                 Supervisor Comment:
                 <textarea 
                   style={{ width: '100%', height: '80px', marginTop: '5px', padding: '10px' }}
-                  value={reviewComment}
-                  onChange={(e) => setReviewComment(e.target.value)}
+                  value={supComment}
+                  onChange={(e) => setSupComment(e.target.value)}
                   placeholder="Enter justification for verification or archival..."
                 />
               </label>

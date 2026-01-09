@@ -215,7 +215,6 @@ dist-ssr/
 
 # --- Docker ---
 .docker/
-# If you have local database data persisted in a volume folder:
 pgdata/ 
 
 # --- OS Specific ---

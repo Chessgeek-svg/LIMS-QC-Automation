@@ -47,9 +47,10 @@ def submit_qc_result(result: schemas_qc.QCResultCreate, db: Session = Depends(ge
     if not test_def:
         raise HTTPException(status_code=404, detail="Test definition not found")
     
-    past_results = db.query(models.QCResult).filter(
-        models.QCResult.test_id == result.test_id
-    ).order_by(models.QCResult.timestamp.desc()).limit(10).all()
+    past_results = db.query(models.QCResult)\
+        .filter(models.QCResult.test_id == result.test_id)\
+        .filter(models.QCResult.status != "ARCHIVED")\
+        .order_by(models.QCResult.timestamp.desc()).limit(10).all()
 
     history_z = [
         calculate_z_score(
@@ -111,6 +112,8 @@ def update_qc_result(
 
 @router.delete("/results/{result_id}")
 def archive_result(result_id: int, supervisor_id: int, db: Session = Depends(get_db)):
+    raise HTTPException(status_code=403, detail="True deletes are disabled. Use Archive instead.")
+    #Holding onto this code for now in case i want to add like an admin privilege to truly delete results
     result = crud_qc.archive_qc_result(db, result_id=result_id, supervisor_id=supervisor_id)
     if not result:
         raise HTTPException(status_code=404, detail="Result not found")

@@ -4,7 +4,7 @@ from sqlalchemy.sql import func
 from app.db.session import Base
 from decimal import Decimal
 from datetime import datetime
-
+from typing import Optional
 
 class Instrument(Base):
     __tablename__ = "instruments"
@@ -45,6 +45,7 @@ class QCResult(Base):
     is_archived: Mapped[bool] = mapped_column(Boolean, default=False)
     system_comment: Mapped[str] = mapped_column(String)
     user_comment: Mapped[str] = mapped_column(String, nullable=True)
+    supervisor_comment: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
     test_definition = relationship("TestDefinition", back_populates="results")
 
