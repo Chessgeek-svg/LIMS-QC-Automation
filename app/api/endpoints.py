@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Header
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
@@ -82,8 +83,6 @@ def submit_qc_result(result: schemas_qc.QCResultCreate, db: Session = Depends(ge
 
 @router.get("/results/", response_model=List[schemas_qc.QCResult])
 def read_results(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    #Only return results that are not archived for now
-    #Could add a review mode / supervisor mode to show all results including archived
     results = db.query(models.QCResult).filter(
         models.QCResult.is_archived == False
     ).offset(skip).limit(limit).all()
@@ -111,16 +110,16 @@ def update_qc_result(
     )
 
 @router.delete("/results/{result_id}")
-def archive_result(result_id: int, supervisor_id: int, db: Session = Depends(get_db)):
+def archive_result(result_id: int, reviewer_id: int, db: Session = Depends(get_db)):
     raise HTTPException(status_code=403, detail="True deletes are disabled. Use Archive instead.")
     #Holding onto this code for now in case i want to add like an admin privilege to truly delete results
-    result = crud_qc.archive_qc_result(db, result_id=result_id, supervisor_id=supervisor_id)
+    result = crud_qc.archive_qc_result(db, result_id=result_id, reviewer_id=reviewer_id)
     if not result:
         raise HTTPException(status_code=404, detail="Result not found")
     return {
         "status": "success",
         "message": f"Result {result_id} has been archived.",
-        "archived_by": supervisor_id,
+        "archived_by": reviewer_id,
         "timestamp": datetime.now(),
         "data": result
     }
@@ -140,3 +139,40 @@ def get_test_stats(
             detail=f"Test definition with ID {test_id} not found or has no results."
         )
     return stats
+
+def get_current_user(
+    db: Session = Depends(get_db), 
+    x_user_id: int = Header(None) # Looks for 'X-User-ID' in the request headers
+) -> models.User:
+    if x_user_id is None:
+        raise HTTPException(status_code=401, detail="User ID header missing")
+
+    query = select(models.User).where(models.User.id == x_user_id)
+    user = db.execute(query).scalar_one_or_none()
+
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    return user
+
+def get_current_supervisor(current_user: models.User = Depends(get_current_user)):
+    if current_user.role != models.UserRole.SUPERVISOR:
+        raise HTTPException(
+            status_code=403, 
+            detail="Operation restricted to Supervisor role."
+        )
+    return current_user
+
+@router.patch("/test-definitions/{test_id}", response_model=schemas_qc.TestDefinition)
+def patch_test_definition(
+    test_id: int, 
+    payload: dict,
+    db: Session = Depends(get_db)
+):
+
+    db_test = db.get(models.TestDefinition, test_id)
+    if not db_test:
+        raise HTTPException(status_code=404, detail="Test definition not found")
+        
+    updated_test = crud_qc.update_test_definition(db, test_id=test_id, updates=payload)
+    return updated_test

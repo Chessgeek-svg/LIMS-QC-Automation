@@ -1,6 +1,7 @@
 import json
 import statistics
 from fastapi.encoders import jsonable_encoder
+from sqlalchemy import update
 from sqlalchemy.orm import Session
 from app.models import qc as models
 from app.schemas import qc as schemas
@@ -22,6 +23,19 @@ def get_test_definitions(db: Session, instrument_id: Optional[int] = None, skip:
     if instrument_id:
         query = query.filter(models.TestDefinition.instrument_id == instrument_id)
     return query.offset(skip).limit(limit).all()
+
+def update_test_definition(db: Session, test_id: int, updates: dict):
+    stmt = (
+        update(models.TestDefinition)
+        .where(models.TestDefinition.id == test_id)
+        .values(**updates)
+        .execution_options(synchronize_session="fetch")
+    )
+    
+    db.execute(stmt)
+    db.commit()
+    
+    return db.get(models.TestDefinition, test_id)
 
 #QC Result CRUD
 def create_qc_result(db: Session, result: schemas.QCResultCreate, status: str, system_comment: str):
@@ -60,7 +74,7 @@ def update_qc_result(db: Session, db_result: models.QCResult, obj_in: schemas.QC
     old_data = jsonable_encoder(db_result)
     
     update_data = obj_in.model_dump(exclude_unset=True)
-    supervisor_id = update_data.pop("supervisor_id", None)
+    reviewer_id = update_data.get("reviewer_id", None)
     for field in update_data:
         setattr(db_result, field, update_data[field])
     
@@ -75,7 +89,7 @@ def update_qc_result(db: Session, db_result: models.QCResult, obj_in: schemas.QC
         action="UPDATE",
         old_value=json.dumps(old_data),
         new_value=json.dumps(new_data),
-        user_id=supervisor_id
+        user_id=reviewer_id
     )
     
     db.add(db_audit)
@@ -83,13 +97,15 @@ def update_qc_result(db: Session, db_result: models.QCResult, obj_in: schemas.QC
     db.refresh(db_result)
     return db_result
 
-def archive_qc_result(db: Session, result_id: int, supervisor_id: int):
+def archive_qc_result(db: Session, result_id: int, reviewer_id: int, reviewer_name: str):
     db_result = db.query(models.QCResult).filter(models.QCResult.id == result_id).first()
     if not db_result:
         return None
 
     old_data = jsonable_encoder(db_result)
     db_result.is_archived = True
+    db_result.reviewed_by_name = reviewer_name
+    db_result.reviewer_id = reviewer_id
     
     db.add(db_result)
     db.flush()
@@ -100,7 +116,7 @@ def archive_qc_result(db: Session, result_id: int, supervisor_id: int):
         action="ARCHIVE",
         old_value=json.dumps(old_data),
         new_value=json.dumps({"is_archived": True}),
-        user_id=supervisor_id
+        user_id=reviewer_id
     )
     
     db.add(db_audit)

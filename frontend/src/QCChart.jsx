@@ -1,5 +1,4 @@
-import React from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer, YAxis as YAxisRecharts } from 'recharts';
+import { LineChart, Line, XAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer, YAxis} from 'recharts';
 
 const QCChart = ({ data, stats }) => {
   if (!data || data.length === 0) return <p>No data available for this test.</p>;
@@ -59,9 +58,9 @@ const CustomTooltip = ({ active, payload, label, stats }) => {
           <Tooltip content={<CustomTooltip stats={stats} />} />
           
           {/* Westgard Boundary Lines */}
-          <ReferenceLine y={stats.target_mean} label="Mean" stroke="green" strokeWidth={2} />
-          <ReferenceLine y={stats.plus_2sd} label="+2SD" stroke="red" strokeDasharray="3 3" />
-          <ReferenceLine y={stats.minus_2sd} label="-2SD" stroke="red" strokeDasharray="3 3" />
+          <ReferenceLine y={parseFloat(stats.test_definition.mean)} label="Mean" stroke="green" strokeWidth={2} />
+          <ReferenceLine y={parseFloat(stats.test_definition.mean) + (parseFloat(stats.test_definition.std_dev) * 2)} label="+2SD" stroke="red" strokeDasharray="3 3" />
+          <ReferenceLine y={parseFloat(stats.test_definition.mean) - (parseFloat(stats.test_definition.std_dev) * 2)} label="-2SD" stroke="red" strokeDasharray="3 3" />
           
           <Line 
             type="monotone" 

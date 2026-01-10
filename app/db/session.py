@@ -5,6 +5,9 @@ import os
 # The DATABASE_URL is pulled from the environment variable defined in docker-compose.yml
 SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
 
+if SQLALCHEMY_DATABASE_URL is None:
+    raise ValueError("DATABASE_URL environment variable is not set!")
+
 # The engine is the actual connection to the database
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 
