@@ -134,7 +134,7 @@ const saveTargetUpdates = () => {
   const testId = selectedStats.test_definition.id;
   
   axios.patch(`http://localhost:8000/api/v1/test-definitions/${testId}`, editForm, {
-    headers: { 'X-User-ID': activeUser.id } //Sends the ID of whoever is selected in the switcher
+    headers: { 'User-ID': activeUser.id } //Sends the ID of whoever is selected in the switcher
   })
     .then(res => {
     //Update local state so UI reflects new targets immediately
@@ -249,17 +249,11 @@ const RoleSwitcher = () => (
           <div>
             {activeUser.role === 'supervisor' && (
               <button
-                onClick={() => {
-                  setEditForm({
-                    mean: selectedStats.test_definition.mean,
-                    std_dev: selectedStats.test_definition.std_dev
-                  });
-                  setIsEditingTargets(true);
-                }} 
-                style={{ fontSize: '0.7rem' }}
-              >
-                Edit Target Mean/SD
-              </button>
+                onClick={handleOpenEdit}
+              style={{ fontSize: '0.7rem' }}
+            >
+              Edit Target Mean/SD
+            </button>
             )}
             {isEditingTargets && (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
