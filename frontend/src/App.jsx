@@ -15,7 +15,7 @@ function App() {
   const [editForm, setEditForm] = useState({ mean: '', std_dev: '' });
 
   useEffect(() => {
-    axios.get('http://localhost:8000/api/v1/test-definitions/')
+    axios.get('http://localhost:80/api/v1/test-definitions/')
       .then(res => setTests(res.data))
       .catch(err => {
         console.error("Backend Error:", err);
@@ -33,7 +33,7 @@ useEffect(() => {
 
   setError(null);
   //Pass the showArchived state to the backend as a query parameter
-  axios.get(`http://localhost:8000/api/v1/test-definitions/${selectedTestId}/stats?include_archived=${showArchived}`)
+  axios.get(`http://localhost:80/api/v1/test-definitions/${selectedTestId}/stats?include_archived=${showArchived}`)
     .then(res => {
       setSelectedStats(res.data);
     })
@@ -63,7 +63,7 @@ const handleUpdateStatus = (newStatus) => {
     reviewed_by_name: activeUser.name
   };
 
-  axios.patch(`http://localhost:8000/api/v1/results/${selectedResult.id}`, payload)
+  axios.patch(`http://localhost:80/api/v1/results/${selectedResult.id}`, payload)
     .then(res => {
       setSelectedStats(prevStats => {
         if (!prevStats) return null;
@@ -133,7 +133,7 @@ const saveTargetUpdates = () => {
 
   const testId = selectedStats.test_definition.id;
   
-  axios.patch(`http://localhost:8000/api/v1/test-definitions/${testId}`, editForm, {
+  axios.patch(`http://localhost:80/api/v1/test-definitions/${testId}`, editForm, {
     headers: { 'User-ID': activeUser.id } //Sends the ID of whoever is selected in the switcher
   })
     .then(res => {

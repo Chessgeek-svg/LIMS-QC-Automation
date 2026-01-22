@@ -104,9 +104,9 @@ To verify the system's core audit-traceable logic, follow this guided sequence.
 ### Phase 1: Seed the Environment (One-Time Setup)
 If the database is empty, you must define a test analyte via the backend API before using the dashboard.
 
-* **Access API Docs:** Navigate to `http://localhost:8000/docs`.
+* **Access API Docs:** Navigate to `http://localhost:80/docs`.
 * **Register an Instrument**: Before defining analytes, you must register the hardware source in the system.
-    * **Access API Docs**: Navigate to `http://localhost:8000/docs`.
+    * **Access API Docs**: Navigate to `http://localhost:80/docs`.
     * **Endpoint**: Locate the `POST /api/v1/instruments/` endpoint.
     * **Execute Request**: Register an analyzer. The following is an example, the variables for all forms can be filled as the user sees fit.
     
@@ -164,7 +164,7 @@ This project currently serves as a functional framework for clinical data tracki
 
 * Enterprise Authentication: Implementation of OAuth2/OpenID Connect (via Keycloak or Auth0) to replace header-based role simulation with production-grade identity management.
 * Root Cause Recommendation Engine: Leveraging historical audit logs to build a lookup engine that suggests common corrective actions (e.g., "Reagent Lot Change" or "Probe Clean") based on similar past violations.
-
+* Containerize Frontend: Currently, the frontend is served via a local development server (npm run dev). The next step is to implement a multi-stage Docker build to compile the React application into static assets and serve them directly via the NGINX container.
 
 ## License
 Distributed under the **MIT License**. See `LICENSE` for more information. 
